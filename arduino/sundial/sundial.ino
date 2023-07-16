@@ -24,6 +24,7 @@
 #define SD_chip_select_PIN 4
 
 File myFile;
+String data;
 
 void setup() {
   // Open serial communications and wait for port to open:
@@ -72,13 +73,22 @@ void setup() {
     Serial.println(filename + " doesn't exist.");
   }
 
+  int idx;
+  char c;
   myFile = SD.open(filename);
   if (myFile) {
     Serial.println(filename);
 
     // read from the file until there's nothing else in it:
+    myFile.seek(279956); // seek to jump into the correct line
     while (myFile.available()) {
-      Serial.write(myFile.read());
+      data = myFile.readStringUntil('\n');
+      idx = data.indexOf(",");
+      //Serial.println(data.substring(0, idx));
+      if (data.substring(0, idx).startsWith("2023-12-11")) {
+        Serial.println(myFile.position());
+        Serial.println(data);
+      }
     }
     // close the file:
     myFile.close();
