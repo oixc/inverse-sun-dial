@@ -1,1 +1,2 @@
-test sun 60 min
+name=fake_sun_60_min
+frequency=3600
