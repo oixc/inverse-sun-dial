@@ -21,6 +21,7 @@
 #include <SPI.h>
 #include <SD.h>
 #include <TimeLib.h>
+#include <DS1307RTC.h>  // a basic DS1307 library that returns time as a time_t
 
 #define SD_chip_select_PIN 4
 
@@ -33,27 +34,40 @@ unsigned long pos_estimate = -1;
 String filename;
 
 void setup() {
+  // initialize digital pin LED_BUILTIN as an output.
+  pinMode(LED_BUILTIN, OUTPUT);
+
   // Open serial communications and wait for port to open:
   Serial.begin(9600);
   while (!Serial) {
     ;  // wait for serial port to connect. Needed for native USB port only
   }
 
+  setSyncProvider(RTC.get);  // the function to get the time from the RTC
+  if (timeStatus() != timeSet)
+    Serial.println("Unable to sync with the RTC");
+  else
+    Serial.println("RTC has set the system time");
+  setSyncInterval(60 * 5);  // re-sync every 5 minutes
+
   SD_info();
-  target_time = 1673893589; // 1703466000;
+  //target_time = 1673893589;  // 1703466000;
   filename = "/sundial/1/2023.csv";
-  setTime(target_time);
+  //setTime(target_time);
 }
 
 void loop() {
+  target_time = now();
   read_data(filename, target_time, pos_estimate, date_time, azimuth, altitude);
   print_date_time(target_time);
-  Serial.println("");
-  Serial.println(target_time);
-  Serial.println(azimuth);
+  Serial.print(" date_time: ");
+  print_date_time(date_time);
+  Serial.print(" azimuth: ");
+  Serial.print(azimuth);
+  Serial.print(" altitude: ");
   Serial.println(altitude);
   delay(5000);
-  target_time = target_time + 60 * 60 * 0.4 + 17;
+  //target_time = target_time + 60 * 60 * 0.4 + 17;
 }
 
 void SD_info() {
@@ -93,17 +107,15 @@ void SD_info() {
 
 void read_data(String filename, time_t target_time, unsigned long &pos_estimate, time_t &date_time, float &azimuth, float &altitude) {
   if (date_time >= target_time) {
+    // last reading was already ahead of the target time. nothing to do now
     return;
   }
-
-  Serial.print("Initializing SD card...");
 
   if (!SD.begin(SD_chip_select_PIN)) {
     Serial.println("initialization failed!");
     while (1)
       ;
   }
-  Serial.println("initialization done.");
 
   file = SD.open(filename);
 
@@ -119,32 +131,15 @@ void read_data(String filename, time_t target_time, unsigned long &pos_estimate,
   }
 
   if (file) {
-    Serial.println(filename);
-    Serial.print("seeking to position: ");
-    Serial.println(pos_estimate);
     file.seek(pos_estimate);  // seek to jump into the correct line
     while (file.available()) {
+      digitalWrite(LED_BUILTIN, HIGH);
       date_time = file.parseInt();
       azimuth = file.parseFloat();
       altitude = file.parseFloat();
-      print_date_time(date_time);
-      Serial.print(" --- ");      
-      print_date_time(target_time);      
-      Serial.println("");
       if (date_time >= target_time) {
+        digitalWrite(LED_BUILTIN, LOW);
         pos_estimate = file.position();
-
-        Serial.print(file.position());
-        Serial.print(" --- azimuth:");
-        Serial.print(azimuth);
-        Serial.print("--- altitude:");
-        Serial.print(altitude);
-        Serial.print("--- time:");
-        Serial.print(date_time);
-        Serial.print("--- datetime:");
-        print_date_time(date_time);
-        Serial.println("");
-
         break;
       }
     }
@@ -152,7 +147,8 @@ void read_data(String filename, time_t target_time, unsigned long &pos_estimate,
     file.close();
   } else {
     // if the file didn't open, print an error:
-    Serial.println("error opening file");
+    Serial.print("error opening file: ");
+    Serial.println(filename);
   }
 }
 
