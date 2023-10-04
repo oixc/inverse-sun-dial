@@ -76,10 +76,16 @@ void move_to_counter(int target){
 }
 
 void move_degrees(float target){
-// 3 pulse per revolution (ppr) --> 3 * 4 = 12 counts per revolution (cpr)
-// gear ratio 298:1 --> 298 * 12 = 3576 counters per revolution
-// experiments show 3576 / 2 = 1788 for one revolution --> cpr probably just 6 and not 12 in this setup
+  // 3 pulse per revolution (ppr) --> 3 * 4 = 12 counts per revolution (cpr)
+  // gear ratio 298:1 --> 298 * 12 = 3576 counters per revolution
+  // experiments show 3576 / 2 = 1788 for one revolution --> cpr probably just 6 and not 12 in this setup
   move_to_counter(int(1788 * target / 360));
+}
+
+void move_to_altitude(float altitude){
+  // assuming altitude is 0° at the horizon, 90° straight up
+  // assuming we are ate 0° altitude at counter 0
+  move_to_counter(int(1788 * altitude / 360));
 }
 
 void setup() {
@@ -95,6 +101,6 @@ void setup() {
 
 void loop() {
   update_counter();
-  move_degrees(-90);
+  move_to_altitude(90);
   Serial.println(counter);
 }
